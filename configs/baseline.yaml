@@ -1,0 +1,21 @@
+# ==========================================
+# SIAMESE NETWORK - BASELINE CONFIG
+# ==========================================
+
+paths:
+  data_dir: "data/lfw"
+  save_path: "best_siamese_model.pth"
+
+hyperparameters:
+  batch_size: 64
+  learning_rate: 0.0001
+  margin: 1.0
+
+training:
+  epochs: 50
+  patience: 3
+
+evaluation:
+  image_a: "data/lfw/Aaron_Peirsol/Aaron_Peirsol_0001.jpg"
+  image_b: "data/lfw/Abba_Eban/Abba_Eban_0001.jpg"
+  threshold: 0.8
