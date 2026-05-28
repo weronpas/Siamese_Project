@@ -3,12 +3,15 @@
 siamese_project/
 │
 ├── data/
-│   └── lfw/
+│   └── lfw/                  
 │
-├── dataset.py
-├── model.py
-├── train.py
+├── src/
+│   ├── __init__.py
+│   ├── dataset.py
+│   ├── model.py
+│   └── trainer.py
 │
-├── .gitignore
-└── requirements.txt
+├── main.py
+├── requirements.txt          
+└── .gitignore
 ```
