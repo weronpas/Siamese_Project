@@ -1,7 +1,10 @@
 import torch
 import yaml
 import argparse
+
 from src.train import run_training
+from src.eval import evaluate_pair
+
 
 def load_config(config_path):
     with open(config_path, 'r') as file:
@@ -11,27 +14,40 @@ def main():
     parser = argparse.ArgumentParser(description="Siamese Network Orchestrator")
     parser.add_argument('--config', type=str, default='configs/baseline.yaml', 
                         help='Path to the YAML configuration file')
+    parser.add_argument('--mode', type=str, default='train', choices=['train', 'eval'],
+                        help='Execution mode: train or eval')
     args = parser.parse_args()
+
 
     config = load_config(args.config)
 
     print("=========================================")
     print("      SIAMESE NETWORK ORCHESTRATOR       ")
     print("=========================================")
-    print(f"Loaded configuration from: {args.config}")
+    print(f"Active Mode:    {args.mode.upper()}")
+    print(f"Configuration: {args.config}")
     print("=========================================\n")
     
     device = torch.device("mps")
     
-    run_training(
-        data_dir=config['paths']['data_dir'],
-        batch_size=config['hyperparameters']['batch_size'],
-        epochs=config['training']['epochs'],
-        lr=config['hyperparameters']['learning_rate'],
-        margin=config['hyperparameters']['margin'],
-        patience=config['training']['patience'],
-        device=device
-    )
+    if args.mode == 'train':
+        run_training(
+            data_dir=config['paths']['data_dir'],
+            batch_size=config['hyperparameters']['batch_size'],
+            epochs=config['training']['epochs'],
+            lr=config['hyperparameters']['learning_rate'],
+            margin=config['hyperparameters']['margin'],
+            patience=config['training']['patience'],
+            device=device
+        )
+    elif args.mode == 'eval':
+        evaluate_pair(
+            model_path=config['paths']['save_path'],
+            img1_path=config['evaluation']['image_a'],
+            img2_path=config['evaluation']['image_b'],
+            threshold=config['evaluation']['threshold'],
+            device=device
+        )
 
 if __name__ == "__main__":
     main()

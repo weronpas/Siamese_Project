@@ -14,3 +14,8 @@ hyperparameters:
 training:
   epochs: 50
   patience: 3
+
+evaluation:
+  image_a: "data/lfw/Aaron_Peirsol/Aaron_Peirsol_0001.jpg"
+  image_b: "data/lfw/Abba_Eban/Abba_Eban_0001.jpg"
+  threshold: 0.8

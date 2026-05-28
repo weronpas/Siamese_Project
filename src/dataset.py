@@ -6,34 +6,42 @@ from torch.utils.data import Dataset
 
 class LFWTripletDataset(Dataset):
     def __init__(self, root_dir, transform=None):
-
+        """
+        Args:
+            root_dir (string): Directory with all the images (e.g., 'data/lfw/').
+            transform (callable, optional): Optional transform to be applied on a sample.
+        """
         self.root_dir = root_dir
         self.transform = transform
         
         self.person_to_images = {}
+        self.anchor_persons = []
+        self.all_persons = []
         
         for person_name in os.listdir(root_dir):
             person_path = os.path.join(root_dir, person_name)
-
+            
             if os.path.isdir(person_path):
                 images = [img for img in os.listdir(person_path) if img.endswith('.jpg')]
                 
-                if len(images) > 1:
+                if len(images) > 0:
                     self.person_to_images[person_name] = images
-        
-        self.persons = list(self.person_to_images.keys())
+                    self.all_persons.append(person_name)
+                    
+                    if len(images) > 1:
+                        self.anchor_persons.append(person_name)
         
     def __len__(self):
-        return len(self.persons)
+        return len(self.anchor_persons)
 
     def __getitem__(self, idx):
-        anchor_person = self.persons[idx]
-        
+        anchor_person = self.anchor_persons[idx]
+
         anchor_img_name, positive_img_name = random.sample(self.person_to_images[anchor_person], 2)
         
-        negative_person = random.choice(self.persons)
+        negative_person = random.choice(self.all_persons)
         while negative_person == anchor_person:
-            negative_person = random.choice(self.persons)
+            negative_person = random.choice(self.all_persons)
             
         negative_img_name = random.choice(self.person_to_images[negative_person])
         
