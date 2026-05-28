@@ -37,15 +37,20 @@ siamese_project/
 ├── main.py
 └── best_siamese_model.pth
 ```
-📊 Technical Architecture & Mathematics
-The Objective
+
+## Technical Architecture & Mathematics
+
+### The Objective
+
 Instead of predicting class labels, the network maps high-dimensional facial images into a low-dimensional vector space ($\mathbb{R}^{128}$) where the geometric distance represents facial dissimilarity.
 
-Embedding Normalization
+### Embedding Normalization
+
 The model applies L2 Normalization to the final output layer:
 $$\text{Embedding} = \frac{f(x)}{\|f(x)\|_2}$$
 This forces all output vectors to lie on a unit hypersphere, stabilizing the Euclidean distance scale and rendering a default decision threshold of 0.8 highly effective.
 
-Loss Function
+### Loss Function
+
 The model optimizes weights using Triplet Margin Loss, pushing matching pairs closer together while forcing non-matching faces apart by at least a predefined safety margin ($m$):
 $$\mathcal{L}(A, P, N) = \max \left( d(A, P) - d(A, N) + \text{margin}, 0 \right)$$
