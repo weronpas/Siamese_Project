@@ -9,15 +9,29 @@ from .dataset import LFWTripletDataset
 from .model import SiameseNetwork
 
 def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
-    print("--- Initializing Data Pipeline ---")
+    print("--- Initializing Augmented Data Pipeline ---")
     
-    transform = transforms.Compose([
+    # Advanced Data Augmentation for robust feature learning
+    train_transform = transforms.Compose([
         transforms.Resize((112, 112)),
+        transforms.RandomHorizontalFlip(p=0.5), # Robustness to face orientation
+        transforms.ColorJitter(
+            brightness=0.3,   # Robustness to shadows and bright spots
+            contrast=0.3,     # Robustness to underexposed/overexposed lighting
+            saturation=0.2,   # Robustness to camera sensor variations
+            hue=0.1
+        ),
         transforms.ToTensor(),
+        transforms.RandomErasing(
+            p=0.2, 
+            scale=(0.02, 0.15), 
+            value='random'
+        ), # Simulates occlusions like sunglasses, hair, or masks
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    dataset = LFWTripletDataset(root_dir=data_dir, transform=transform)
+    # We pass the heavily augmented transform into our training dataset
+    dataset = LFWTripletDataset(root_dir=data_dir, transform=train_transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     model = SiameseNetwork(embedding_dim=128).to(device)
@@ -29,7 +43,7 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
     epochs_no_improve = 0
     best_model_weights = copy.deepcopy(model.state_dict())
 
-    print("\n--- Starting Training (with Early Stopping) ---")
+    print("\n--- Starting Training (with Augmentation and Early Stopping) ---")
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
@@ -57,13 +71,13 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
         
         # --- EARLY STOPPING LOGIC ---
         if avg_loss < best_loss:
-            print(f"New best model! Loss decreased from {best_loss:.4f} to {avg_loss:.4f}. Saving weights...")
+            print(f"[*] New best model! Loss decreased from {best_loss:.4f} to {avg_loss:.4f}. Saving weights...")
             best_loss = avg_loss
             best_model_weights = copy.deepcopy(model.state_dict())
             epochs_no_improve = 0
         else:
             epochs_no_improve += 1
-            print(f"No improvement for {epochs_no_improve} epoch(s). (Patience: {patience})")
+            print(f"[!] No improvement for {epochs_no_improve} epoch(s). (Patience: {patience})")
             
             if epochs_no_improve >= patience:
                 print(f"\n[!!!] EARLY STOPPING TRIGGERED [!!!]")
