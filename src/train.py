@@ -2,9 +2,10 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-import json
 import time
 import copy 
+import json
+import os
 
 from .dataset import LFWTripletDataset
 from .model import SiameseNetwork
@@ -15,45 +16,49 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
     # Advanced Data Augmentation for robust feature learning
     train_transform = transforms.Compose([
         transforms.Resize((112, 112)),
-        transforms.RandomHorizontalFlip(p=0.5), # Robustness to face orientation
-        transforms.ColorJitter(
-            brightness=0.3,   # Robustness to shadows and bright spots
-            contrast=0.3,     # Robustness to underexposed/overexposed lighting
-            saturation=0.2,   # Robustness to camera sensor variations
-            hue=0.1
-        ),
-        transforms.ToTensor(),
-        transforms.RandomErasing(
-            p=0.2, 
-            scale=(0.02, 0.15), 
-            value='random'
-        ), # Simulates occlusions like sunglasses, hair, or masks
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.1),
+        transforms.ToTensor(), 
+        transforms.RandomErasing(p=0.2, scale=(0.02, 0.15), value=0), 
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    # We pass the heavily augmented transform into our training dataset
     dataset = LFWTripletDataset(root_dir=data_dir, transform=train_transform)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
     model = SiameseNetwork(embedding_dim=128).to(device)
     criterion = torch.nn.TripletMarginLoss(margin=margin, p=2)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    
+    # NEW: Initialize the ReduceLROnPlateau Scheduler
+    # It will cut the LR in half (factor=0.5) if the loss doesn't improve for 2 epochs
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, 
+        mode='min', 
+        factor=0.5, 
+        patience=2
+    )
 
-    # --- EARLY STOPPING VARIABLES ---
+    # --- EARLY STOPPING & HISTORY VARIABLES ---
     best_loss = float('inf')
     epochs_no_improve = 0
     best_model_weights = copy.deepcopy(model.state_dict())
-
+    
     training_history = {
         'train_loss': [],
+        'learning_rates': [],  # NEW: Track LR changes over epochs
         'best_epoch': 0
     }
 
-    print("\n--- Starting Training (with Augmentation and Early Stopping) ---")
+    print("\n--- Starting Training (with Augmentation, Scheduler and Early Stopping) ---")
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
         start_time = time.time()
+        
+        # Capture the current active learning rate before the epoch starts
+        current_lr = optimizer.param_groups[0]['lr']
+        training_history['learning_rates'].append(current_lr)
         
         for batch_idx, (anchor, positive, negative) in enumerate(dataloader):
             anchor, positive, negative = anchor.to(device), positive.to(device), negative.to(device)
@@ -72,10 +77,12 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
                 
         epoch_time = time.time() - start_time
         avg_loss = running_loss / len(dataloader)
-
         training_history['train_loss'].append(avg_loss)
         
-        print(f"=== Epoch {epoch+1}/{epochs} completed in {epoch_time:.2f}s | Average Loss: {avg_loss:.4f} ===")
+        # NEW: Step the scheduler based on the average epoch loss
+        scheduler.step(avg_loss)
+        
+        print(f"=== Epoch {epoch+1}/{epochs} completed in {epoch_time:.2f}s | Loss: {avg_loss:.4f} | LR: {current_lr:.6f} ===")
         
         # --- EARLY STOPPING LOGIC ---
         if avg_loss < best_loss:
@@ -95,11 +102,13 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
 
     print("\n--- Finishing ---")
     model.load_state_dict(best_model_weights)
-
+    
+    # Save Model Weights
     save_path = "best_siamese_model.pth"
     torch.save(model.state_dict(), save_path)
     print(f"Best weights saved to: {save_path} (Loss: {best_loss:.4f})")
-
+    
+    # Save Training History for Jupyter Notebook
     history_path = "training_history.json"
     with open(history_path, 'w') as f:
         json.dump(training_history, f, indent=4)
