@@ -3,7 +3,6 @@ import yaml
 import argparse
 
 from src.train import run_training
-from src.eval import evaluate_accuracy
 
 
 def load_config(config_path):
@@ -14,8 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description="Siamese Network Orchestrator")
     parser.add_argument('--config', type=str, default='configs/baseline.yaml', 
                         help='Path to the YAML configuration file')
-    parser.add_argument('--mode', type=str, default='train', choices=['train', 'eval'],
-                        help='Execution mode: train or eval')
+    parser.add_argument('--mode', type=str, default='train',
+                        help='Execution mode: train')
     args = parser.parse_args()
 
 
@@ -39,14 +38,6 @@ def main():
             margin=config['hyperparameters']['margin'],
             patience=config['training']['patience'],
             device=device
-        )
-    elif args.mode == 'eval':
-        evaluate_accuracy(
-            model_path=config['paths']['save_path'],
-            data_dir=config['paths']['data_dir'],
-            threshold=config['evaluation']['threshold'],
-            device=device,
-            num_pairs=200
         )
 
 if __name__ == "__main__":

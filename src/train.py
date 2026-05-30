@@ -2,6 +2,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
+import json
 import time
 import copy 
 
@@ -43,6 +44,11 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
     epochs_no_improve = 0
     best_model_weights = copy.deepcopy(model.state_dict())
 
+    training_history = {
+        'train_loss': [],
+        'best_epoch': 0
+    }
+
     print("\n--- Starting Training (with Augmentation and Early Stopping) ---")
     for epoch in range(epochs):
         model.train()
@@ -66,6 +72,8 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
                 
         epoch_time = time.time() - start_time
         avg_loss = running_loss / len(dataloader)
+
+        training_history['train_loss'].append(avg_loss)
         
         print(f"=== Epoch {epoch+1}/{epochs} completed in {epoch_time:.2f}s | Average Loss: {avg_loss:.4f} ===")
         
@@ -74,6 +82,7 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
             print(f"[*] New best model! Loss decreased from {best_loss:.4f} to {avg_loss:.4f}. Saving weights...")
             best_loss = avg_loss
             best_model_weights = copy.deepcopy(model.state_dict())
+            training_history['best_epoch'] = epoch + 1
             epochs_no_improve = 0
         else:
             epochs_no_improve += 1
@@ -86,6 +95,12 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
 
     print("\n--- Finishing ---")
     model.load_state_dict(best_model_weights)
+
     save_path = "best_siamese_model.pth"
     torch.save(model.state_dict(), save_path)
     print(f"Best weights saved to: {save_path} (Loss: {best_loss:.4f})")
+
+    history_path = "training_history.json"
+    with open(history_path, 'w') as f:
+        json.dump(training_history, f, indent=4)
+    print(f"Metrics history saved to: {history_path}")
