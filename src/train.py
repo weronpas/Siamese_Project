@@ -24,7 +24,7 @@ def run_training(data_dir, batch_size, epochs, lr, margin, patience, device):
     ])
     
     dataset = LFWTripletDataset(root_dir=data_dir, transform=train_transform)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
 
     model = SiameseNetwork(embedding_dim=128).to(device)
     criterion = torch.nn.TripletMarginLoss(margin=margin, p=2)

@@ -17,12 +17,8 @@ def load_config(config_path):
 # ==========================================
 CONFIG = load_config('configs/baseline.yaml')
 MODEL_PATH = CONFIG['paths']['save_path']
-THRESHOLD = CONFIG['evaluation']['threshold']
-
-if torch.backends.mps.is_available():
-    DEVICE = torch.device("mps")
-else:
-    DEVICE = torch.device("cpu")
+THRESHOLD = 0.4
+DEVICE = torch.device("mps")
 
 model = SiameseNetwork(embedding_dim=128).to(DEVICE)
 
@@ -43,17 +39,17 @@ transform = transforms.Compose([
 # ==========================================
 # 2. INFERENCE FUNCTION
 # ==========================================
-def verify_faces(image1, image2):
+def verify_faces(image1_path, image2_path):
     """
     Function called by Gradio when the user clicks 'Evaluate'.
-    image1 and image2 are PIL Image objects provided by the Web UI.
+    Inputs are now file paths (strings) to ensure compatibility with modern Gradio.
     """
-    if image1 is None or image2 is None:
+    if image1_path is None or image2_path is None:
         return "Error: Please upload both images.", 0.0
 
-    # Ensure images are in RGB format
-    img1_pil = image1.convert('RGB')
-    img2_pil = image2.convert('RGB')
+    # Open images from paths and ensure they are in RGB format
+    img1_pil = Image.open(image1_path).convert('RGB')
+    img2_pil = Image.open(image2_path).convert('RGB')
 
     # Apply transforms and add batch dimension: [1, Channels, Height, Width]
     img1_tensor = transform(img1_pil).unsqueeze(0).to(DEVICE)
@@ -89,15 +85,19 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
     
     with gr.Row():
         with gr.Column():
-            img_input1 = gr.Image(type="pil", label="Image A (Anchor)")
+            # Zmiana: type="filepath" jest domyślny i najbardziej stabilny w nowym Gradio
+            img_input1 = gr.Image(type="filepath", label="Image A (Anchor)")
         with gr.Column():
-            img_input2 = gr.Image(type="pil", label="Image B (Subject)")
+            img_input2 = gr.Image(type="filepath", label="Image B (Subject)")
             
     verify_btn = gr.Button("Evaluate Pair", variant="primary")
     
     with gr.Row():
-        verdict_output = gr.Textbox(label="System Verdict", scale=2)
-        distance_output = gr.Number(label="Euclidean Distance Score", scale=1)
+        # Zmiana: Układ 'scale' przeniesiony do gr.Column dla poprawnego renderowania UI
+        with gr.Column(scale=2):
+            verdict_output = gr.Textbox(label="System Verdict")
+        with gr.Column(scale=1):
+            distance_output = gr.Number(label="Euclidean Distance Score")
         
     gr.Markdown(f"*Current Decision Threshold: {THRESHOLD}*")
     
@@ -110,5 +110,5 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 
 if __name__ == "__main__":
     print("[INFO] Starting Web Application...")
-    # Launch the server (set inbrowser=True to open automatically)
+    # Launch the server
     demo.launch(share=False, inbrowser=True)

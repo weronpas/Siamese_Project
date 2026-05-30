@@ -12,5 +12,5 @@ hyperparameters:
   margin: 1.0
 
 training:
-  epochs: 50
-  patience: 15
+  epochs: 100
+  patience: 10
