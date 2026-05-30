@@ -3,7 +3,7 @@ import yaml
 import argparse
 
 from src.train import run_training
-from src.eval import evaluate_pair
+from src.eval import evaluate_accuracy
 
 
 def load_config(config_path):
@@ -41,12 +41,12 @@ def main():
             device=device
         )
     elif args.mode == 'eval':
-        evaluate_pair(
+        evaluate_accuracy(
             model_path=config['paths']['save_path'],
-            img1_path=config['evaluation']['image_a'],
-            img2_path=config['evaluation']['image_b'],
+            data_dir=config['paths']['data_dir'],
             threshold=config['evaluation']['threshold'],
-            device=device
+            device=device,
+            num_pairs=200
         )
 
 if __name__ == "__main__":
